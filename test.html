@@ -1,0 +1,125 @@
+<html xmlns="http://www.w3.org/1999/xhtml">
+    <head>
+        <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+        <title>Google App Engine - Channel API Test</title>
+         <script type="text/javascript" src="http://geronimo.vidao.com/_ah/channel/jsapi"></script>
+    </head>
+    <body>
+        LOGIN USER:<input type="text" id="loginInput" style="width:300px;"/>
+        n:<input type="text" id="no" style="width:300px;"/>
+        <button type="button" id="login">LOGIN</button>
+        Chat with:<input type="text" id="chat" style="width:300px;"/>
+        <div id="loggingArea" style="overflow:auto; height:400px;">
+        </div>
+        <div id="results" style="height:200px;">
+            <div>
+                <button type="button" id="send_button">SEND</button>
+                <button type="button" id="send5_button">SEND 1000</button>
+                <button type="button" id="latency">COMPUTE LATENCY</button>
+                <input type="text" id="message" style="width:300px;"/>
+            </div>
+            <div>
+                <div>
+                    Missing replies: <span id="missing_replies"></span>
+                </div>
+                <div>
+                    Average latency: <span id="average_latency"></span>
+                </div>
+                <div>
+                    Clients: [<span id="client_list"></span>]
+                </div>
+            </div>
+        </div>
+       <script>
+        var latency = 0;
+        var count = 0;
+        var login = document.getElementById("login");
+        login.onclick = function(){
+            var el = document.getElementById("loginInput");
+            var xhr = new XMLHttpRequest(); 
+            xhr.open("GET","/createChannel?user="+el.value, true); 
+            xhr.send();                 
+            xhr.onreadystatechange = function(){
+              if (xhr.readyState==4 && xhr.status==200)
+                {   
+                    var e = document.getElementById("loggingArea");
+                    e.innerHTML += '<br>' + "Connected to :" + xhr.responseText;
+                    console.log("Channel Created:",xhr.responseText);
+                    channel = new goog.appengine.Channel(JSON.parse(xhr.responseText));
+                    console.log(channel);
+                    channel.open({
+                        onopen : function () {
+                            console.log("===============================================");
+                            console.log("Connected to [" + xhr.responseText + "]");
+                        },
+                        onmessage : function (msg) {
+                            count ++;
+                            var e = document.getElementById("loggingArea");
+                            var el = document.getElementById("chat");
+                            var res = msg.data.split(".");
+                            var now = new Date().getTime();
+                            var difference = now - res[1];
+                            latency += difference;
+                            e.innerHTML += '<br>' + el.value + ":" + res[0];
+                        },
+                        onerror : function (err) {
+                            console.log("error (" + err.code + ": " + err.description);
+                        },
+                        onclose : function () {
+                            console.log("===============================================");
+                            console.log("Disconnected");
+                        }
+                    });
+                }
+            }
+        }
+
+        var lat = document.getElementById("latency");
+        lat.onclick = function () {
+            console.log("Average latency",latency/count);
+        }
+
+        var el = document.getElementById("send_button");
+        el.onclick = function () {
+            count = 0;
+            latency = 0;
+            var el = document.getElementById("chat");
+            var e = document.getElementById("loggingArea");
+            var linput = document.getElementById("loginInput");
+            var msg = document.getElementById("message");           
+            e.innerHTML += '<br>' + linput.value + ":"+ msg.value;
+            e.scrollTop = e.scrollHeight;
+            var xhrObj = new XMLHttpRequest(); 
+            var elapse = new Date().getTime();
+            var message = msg.value + "." + elapse;
+            xhrObj.open("GET","/message?to="+ el.value + "&message=" + message , true); 
+            xhrObj.withCredentials = true;
+            xhrObj.setRequestHeader("Content-type","multipart/form-data");
+            xhrObj.send();
+        }
+        var el2 = document.getElementById("send5_button");
+        var n = document.getElementById("no");
+        el2.onclick = function () {
+            count = 0;
+            latency = 0;
+            var el = document.getElementById("chat");
+            var e = document.getElementById("loggingArea");
+            var linput = document.getElementById("loginInput");
+            var msg = document.getElementById("message");
+            for( var i =0; i<n.value; i++){
+                e.innerHTML += '<br>' + linput.value + ":"+ msg.value;
+                e.scrollTop = e.scrollHeight;
+                var xhrObj = new XMLHttpRequest(); 
+                var elapse = new Date().getTime();
+                var message = msg.value + "." + elapse;
+                xhrObj.open("GET","/message?to="+ el.value + "&message=" + message , true); 
+                xhrObj.withCredentials = true;
+                xhrObj.setRequestHeader("Content-type","multipart/form-data");
+                xhrObj.send();
+            }           
+        }
+
+       </script>
+    </body>
+</html>
+
