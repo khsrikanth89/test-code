@@ -3,7 +3,7 @@ package guestbook
 import (
         "net/http"
         "appengine"
-        //"appengine/datastore"
+        "appengine/datastore"
         "encoding/json"
         "appengine/channel"
 )
@@ -21,9 +21,9 @@ func init() {
   http.HandleFunc("/message", messageHandler)
 }
 
-// func getKey(c appengine.Context, VidaoId string) *datastore.Key {
-//   return datastore.NewKey(c, "channel", VidaoId, 0, nil)
-// }
+func getKey(c appengine.Context, VidaoId string) *datastore.Key {
+  return datastore.NewKey(c, "channel", VidaoId, 0, nil)
+}
 
 
 func createChannel(w http.ResponseWriter, r *http.Request) {
@@ -37,15 +37,15 @@ func createChannel(w http.ResponseWriter, r *http.Request) {
         c.Errorf("channel.Create: %v", err)
         return
     }
-    // g := Channelstore{
-    //         ChannelId: tok,
-    //         VidaoId: VidaoId,
-    // }
-    // _, err = datastore.Put(c, getKey(c,VidaoId), &g)
-    // if err != nil {
-    //         http.Error(w, err.Error(), http.StatusInternalServerError)
-    //         return
-    // }
+    g := Channelstore{
+            ChannelId: tok,
+            VidaoId: VidaoId,
+    }
+    _, err = datastore.Put(c, getKey(c,VidaoId), &g)
+    if err != nil {
+            http.Error(w, err.Error(), http.StatusInternalServerError)
+            return
+    }
   data,_ := json.Marshal(tok)
   w.Write(data)
 }
@@ -54,7 +54,13 @@ func messageHandler(w http.ResponseWriter, r *http.Request) {
   c := appengine.NewContext(r)
   // from := r.FormValue("from")
   to := r.FormValue("to")
+  var g Channelstore
+  if err := datastore.Get(c, getKey(c,to), &g); err != nil {
+      http.Error(w, err.Error(), http.StatusInternalServerError)
+      return
+  }
+  c.Infof("Channelstore",g);
   message := r.FormValue("message")
-  channel.Send(c,to,message)
+  channel.Send(c,g.VidaoId,message)
 }
 
